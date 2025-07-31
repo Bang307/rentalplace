@@ -1,40 +1,38 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, jsonify, request
 import pandas as pd
-from sqlalchemy import create_engine
-import os
 
 app = Flask(__name__)
-CORS(app)
 
-# Railway 환경변수 또는 직접 입력
-DB_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:비밀번호@호스트:포트/DB이름')
-engine = create_engine(DB_URL)
+# CSV 파일 경로
+PRODUCTS_CSV = "products.csv"
+PRICES_CSV = "prices.csv"
+COMPANIES_CSV = "rental_companies.csv"
 
-@app.route("/")
-def home():
-    return "Rental API server is running!"
+# 상품 목록 조회
+@app.route("/api/products")
+def get_products():
+    df = pd.read_csv(PRODUCTS_CSV)
+    return jsonify(df.to_dict(orient="records"))
 
+# 특정 상품 가격 조회
 @app.route("/api/prices")
 def get_prices():
     product_id = request.args.get("product_id")
-    if not product_id:
-        return jsonify({"error": "product_id is required"}), 400
-    try:
-        df = pd.read_sql(f"SELECT * FROM prices WHERE product_id = {product_id}", engine)
-        return df.to_json(orient="records", force_ascii=False)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    df = pd.read_csv(PRICES_CSV)
+    if product_id:
+        df = df[df["product_id"] == int(product_id)]
+    return jsonify(df.to_dict(orient="records"))
 
-# 예시: 모든 상품 조회
-@app.route("/api/products")
-def get_products():
-    try:
-        df = pd.read_sql("SELECT * FROM products", engine)
-        return df.to_json(orient="records", force_ascii=False)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# 렌탈 회사 목록 조회
+@app.route("/api/rental_companies")
+def get_companies():
+    df = pd.read_csv(COMPANIES_CSV)
+    return jsonify(df.to_dict(orient="records"))
+
+# 기본 메인
+@app.route("/")
+def index():
+    return "렌탈 API 서버 실행중!"
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True, host="0.0.0.0", port=8080)
